@@ -12,3 +12,6 @@
 
 ## Data Strategy
 	•	Due to concerns about copyrighted materials, the required materials must be legally purchased and stored in the database for secure and authorized access.
+
+ ## Considerations
+	•	IBM Granite is being considered as it is a truly open-source model with traceable training data. This ensures transparency in the model’s operations and helps mitigate potential copyright issues.
