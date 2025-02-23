@@ -1,11 +1,14 @@
 ---
-description: 
-globs: /backend-flask/*
+description:
+globs:
 ---
-# Rule 0: Always say Hi Genai bootcamp before you start
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to
 
 # Rule 1: Always use application factories
-
 def create_app():
     app = Flask(__name__)
     # ... existing code ...
