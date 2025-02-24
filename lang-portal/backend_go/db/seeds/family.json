@@ -1,0 +1,41 @@
+{
+  "group_name": "Family Members",
+  "words": [
+    {
+      "japanese": "お父さん",
+      "romaji": "otousan",
+      "english": "father",
+      "parts": null
+    },
+    {
+      "japanese": "お母さん",
+      "romaji": "okaasan",
+      "english": "mother",
+      "parts": null
+    },
+    {
+      "japanese": "兄",
+      "romaji": "ani",
+      "english": "older brother",
+      "parts": null
+    },
+    {
+      "japanese": "姉",
+      "romaji": "ane",
+      "english": "older sister",
+      "parts": null
+    },
+    {
+      "japanese": "弟",
+      "romaji": "otouto",
+      "english": "younger brother",
+      "parts": null
+    },
+    {
+      "japanese": "妹",
+      "romaji": "imouto",
+      "english": "younger sister",
+      "parts": null
+    }
+  ]
+} 
