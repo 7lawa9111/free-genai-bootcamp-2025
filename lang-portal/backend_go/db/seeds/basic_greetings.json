@@ -1,0 +1,29 @@
+{
+  "group_name": "Basic Greetings",
+  "words": [
+    {
+      "japanese": "こんにちは",
+      "romaji": "konnichiwa",
+      "english": "hello",
+      "parts": null
+    },
+    {
+      "japanese": "さようなら",
+      "romaji": "sayounara",
+      "english": "goodbye",
+      "parts": null
+    },
+    {
+      "japanese": "おはようございます",
+      "romaji": "ohayou gozaimasu",
+      "english": "good morning",
+      "parts": null
+    },
+    {
+      "japanese": "こんばんは",
+      "romaji": "konbanwa",
+      "english": "good evening",
+      "parts": null
+    }
+  ]
+} 
