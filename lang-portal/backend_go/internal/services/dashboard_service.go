@@ -1,117 +1,118 @@
 package services
 
 import (
-	"time"
-
-	"lang-portal/backend_go/internal/models"
-	"lang-portal/backend_go/internal/repository"
+	"database/sql"
+	"github.com/mohawa/lang-portal/backend_go/internal/database"
+	"github.com/mohawa/lang-portal/backend_go/internal/models"
 )
 
 type DashboardService struct {
-	studySessionRepo *repository.StudySessionRepository
-	wordRepo         *repository.WordRepository
-	groupRepo        *repository.GroupRepository
+	db *sql.DB
 }
 
-func (s *DashboardService) GetStats() (*models.DashboardStats, error) {
-	totalSessions, err := s.studySessionRepo.GetTotalCount()
+func NewDashboardService() *DashboardService {
+	return &DashboardService{db: database.DB}
+}
+
+func (s *DashboardService) GetLastStudySession() (*models.StudySession, error) {
+	var session models.StudySession
+	err := s.db.QueryRow(`
+		SELECT 
+			ss.id,
+			ss.group_id,
+			ss.created_at,
+			ss.study_activity_id,
+			g.name as group_name
+		FROM study_sessions ss
+		JOIN groups g ON ss.group_id = g.id
+		ORDER BY ss.created_at DESC
+		LIMIT 1
+	`).Scan(
+		&session.ID,
+		&session.GroupID,
+		&session.CreatedAt,
+		&session.StudyActivityID,
+		&session.GroupName,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-	// ... implement rest of stats gathering
-	return &models.DashboardStats{
-		TotalSessions: totalSessions,
-	}, nil
+	return &session, nil
 }
 
-func NewDashboardService(
-	studySessionRepo *repository.StudySessionRepository,
-	wordRepo *repository.WordRepository,
-	groupRepo *repository.GroupRepository,
-) *DashboardService {
-	return &DashboardService{
-		studySessionRepo: studySessionRepo,
-		wordRepo:         wordRepo,
-		groupRepo:        groupRepo,
-	}
-}
+func (s *DashboardService) GetStudyProgress() (*models.StudyProgress, error) {
+	var progress models.StudyProgress
 
-type LastStudySessionResponse struct {
-	ID              int64     `json:"id"`
-	GroupID         int64     `json:"group_id"`
-	CreatedAt       time.Time `json:"created_at"`
-	StudyActivityID int64     `json:"study_activity_id"`
-	GroupName       string    `json:"group_name"`
-}
-
-type StudyProgressResponse struct {
-	TotalWordsStudied    int `json:"total_words_studied"`
-	TotalAvailableWords int `json:"total_available_words"`
-}
-
-type QuickStatsResponse struct {
-	SuccessRate        float64 `json:"success_rate"`
-	TotalStudySessions int     `json:"total_study_sessions"`
-	TotalActiveGroups  int     `json:"total_active_groups"`
-	StudyStreakDays    int     `json:"study_streak_days"`
-}
-
-func (s *DashboardService) GetLastStudySession() (*LastStudySessionResponse, error) {
-	session, err := s.studySessionRepo.GetLatest()
+	err := s.db.QueryRow(`
+		SELECT COUNT(DISTINCT id) FROM words
+	`).Scan(&progress.TotalAvailableWords)
 	if err != nil {
 		return nil, err
 	}
 
-	group, err := s.groupRepo.GetByID(session.GroupID)
+	err = s.db.QueryRow(`
+		SELECT COUNT(DISTINCT word_id) 
+		FROM word_review_items
+	`).Scan(&progress.TotalWordsStudied)
 	if err != nil {
 		return nil, err
 	}
 
-	return &LastStudySessionResponse{
-		ID:              session.ID,
-		GroupID:         session.GroupID,
-		CreatedAt:       session.CreatedAt,
-		StudyActivityID: session.StudyActivityID,
-		GroupName:       group.Name,
-	}, nil
+	return &progress, nil
 }
 
-func (s *DashboardService) GetStudyProgress() (*StudyProgressResponse, error) {
-	// TODO: Implement actual counting logic from repositories
-	// For now, return placeholder data
-	return &StudyProgressResponse{
-		TotalWordsStudied:    3,
-		TotalAvailableWords: 124,
-	}, nil
-}
+func (s *DashboardService) GetQuickStats() (*models.DashboardStats, error) {
+	var stats models.DashboardStats
 
-func (s *DashboardService) GetQuickStats() (*QuickStatsResponse, error) {
-	totalSessions, err := s.studySessionRepo.GetTotalCount()
+	err := s.db.QueryRow(`
+		SELECT 
+			COALESCE(
+				CAST(SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS FLOAT) /
+				NULLIF(COUNT(*), 0) * 100,
+				0
+			)
+		FROM word_review_items
+	`).Scan(&stats.SuccessRate)
 	if err != nil {
 		return nil, err
 	}
-	// ... rest of the implementation
-	return &QuickStatsResponse{
-		TotalStudySessions: totalSessions,
-		// ... other fields
-	}, nil
+
+	err = s.db.QueryRow(`
+		SELECT COUNT(*) FROM study_sessions
+	`).Scan(&stats.TotalStudySessions)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.db.QueryRow(`
+		SELECT COUNT(DISTINCT group_id) 
+		FROM study_sessions
+	`).Scan(&stats.TotalActiveGroups)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.db.QueryRow(`
+		WITH RECURSIVE dates(date) AS (
+			SELECT date(MAX(created_at)) FROM study_sessions
+			UNION ALL
+			SELECT date(date, '-1 day')
+			FROM dates
+			WHERE EXISTS (
+				SELECT 1 FROM study_sessions 
+				WHERE date(created_at) = date(dates.date, '-1 day')
+			)
+		)
+		SELECT COUNT(*) FROM dates
+	`).Scan(&stats.StudyStreakDays)
+	if err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
 }
 
-func (s *DashboardService) calculateSuccessRate() (float64, error) {
-	// TODO: Implement actual success rate calculation
-	// SELECT (COUNT(CASE WHEN correct = true THEN 1 END) * 100.0 / COUNT(*))
-	// FROM word_review_items
-	return 80.0, nil
-}
-
-func (s *DashboardService) calculateStudyStreak() (int, error) {
-	// TODO: Implement study streak calculation
-	// This would involve checking consecutive days with study sessions
-	return 4, nil
-}
-
-func (s *DashboardService) getActiveGroupsCount() (int, error) {
-	// TODO: Implement active groups count
-	// This could be groups with study sessions in the last X days
-	return 3, nil
-} 
+// ... rest of the implementation ... 

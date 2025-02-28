@@ -1,71 +1,94 @@
 package services
 
 import (
-	"lang-portal/backend_go/internal/models"
-	"lang-portal/backend_go/internal/repository"
-	"lang-portal/backend_go/internal/validation"
-	"lang-portal/backend_go/internal/errors"
+	"database/sql"
+	"github.com/mohawa/lang-portal/backend_go/internal/database"
+	"github.com/mohawa/lang-portal/backend_go/internal/models"
 )
 
 type WordService struct {
-	wordRepo *repository.WordRepository
+	db *sql.DB
 }
 
-func NewWordService(wordRepo *repository.WordRepository) *WordService {
-	return &WordService{wordRepo: wordRepo}
+func NewWordService() *WordService {
+	return &WordService{db: database.DB}
 }
 
-type WordDetails struct {
-	ID           int64  `json:"id"`
-	Japanese     string `json:"japanese"`
-	Romaji       string `json:"romaji"`
-	English      string `json:"english"`
-	Parts        string `json:"parts,omitempty"`
-	CorrectCount int    `json:"correct_count"`
-	WrongCount   int    `json:"wrong_count"`
-}
-
-type WordResponse struct {
-	ID       int64   `json:"id"`
-	Japanese string  `json:"japanese"`
-	Romaji   string  `json:"romaji"`
-	English  string  `json:"english"`
-	Parts    *string `json:"parts,omitempty"`
-}
-
-func (s *WordService) GetWords(page, limit int) ([]models.Word, int, error) {
-	words, err := s.wordRepo.GetAll(page, limit)
+func (s *WordService) GetWords(page, perPage int) (*models.PaginatedResponse, error) {
+	var total int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM words").Scan(&total)
 	if err != nil {
-		return nil, 0, err
-	}
-
-	totalCount, err := s.wordRepo.GetTotalCount()
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return words, totalCount, nil
-}
-
-func (s *WordService) GetWordByID(id int64) (*WordResponse, error) {
-	// Validate ID
-	if err := validation.ValidateID(id); err != nil {
 		return nil, err
 	}
 
-	word, err := s.wordRepo.GetByID(id)
+	offset := (page - 1) * perPage
+	rows, err := s.db.Query(`
+		SELECT w.japanese, w.romaji, w.english,
+			   COUNT(CASE WHEN wri.correct = 1 THEN 1 END) as correct_count,
+			   COUNT(CASE WHEN wri.correct = 0 THEN 1 END) as wrong_count
+		FROM words w
+		LEFT JOIN word_review_items wri ON w.id = wri.word_id
+		GROUP BY w.id
+		LIMIT ? OFFSET ?
+	`, perPage, offset)
 	if err != nil {
-		if err == repository.ErrNotFound {
-			return nil, errors.ErrWordNotFound
+		return nil, err
+	}
+	defer rows.Close()
+
+	var words []models.WordWithStats
+	for rows.Next() {
+		var w models.WordWithStats
+		if err := rows.Scan(&w.Japanese, &w.Romaji, &w.English, &w.CorrectCount, &w.WrongCount); err != nil {
+			return nil, err
 		}
-		return nil, errors.ErrDatabaseError
+		words = append(words, w)
 	}
 
-	return &WordResponse{
-		ID:       word.ID,
-		Japanese: word.Japanese,
-		Romaji:   word.Romaji,
-		English:  word.English,
-		Parts:    word.Parts,  // Now we can use the pointer directly
+	return &models.PaginatedResponse{
+		Items: words,
+		Pagination: models.Pagination{
+			CurrentPage:  page,
+			TotalPages:   (total + perPage - 1) / perPage,
+			TotalItems:   total,
+			ItemsPerPage: perPage,
+		},
 	}, nil
+}
+
+func (s *WordService) GetWord(id int) (*models.WordResponse, error) {
+	var word models.WordResponse
+	err := s.db.QueryRow(`
+		SELECT w.japanese, w.romaji, w.english,
+			   COUNT(CASE WHEN wri.correct = 1 THEN 1 END) as correct_count,
+			   COUNT(CASE WHEN wri.correct = 0 THEN 1 END) as wrong_count
+		FROM words w
+		LEFT JOIN word_review_items wri ON w.id = wri.word_id
+		WHERE w.id = ?
+		GROUP BY w.id
+	`, id).Scan(&word.Japanese, &word.Romaji, &word.English, &word.Stats.CorrectCount, &word.Stats.WrongCount)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.Query(`
+		SELECT g.id, g.name
+		FROM groups g
+		JOIN words_groups wg ON g.id = wg.group_id
+		WHERE wg.word_id = ?
+	`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var group models.Group
+		if err := rows.Scan(&group.ID, &group.Name); err != nil {
+			return nil, err
+		}
+		word.Groups = append(word.Groups, group)
+	}
+
+	return &word, nil
 } 
