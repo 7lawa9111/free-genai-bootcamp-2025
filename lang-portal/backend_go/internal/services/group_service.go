@@ -1,173 +1,174 @@
 package services
 
 import (
-	"fmt"
-	"lang-portal/backend_go/internal/errors"
-	"lang-portal/backend_go/internal/models"
-	"lang-portal/backend_go/internal/repository"
-	"lang-portal/backend_go/internal/validation"
+	"database/sql"
+	"github.com/mohawa/lang-portal/backend_go/internal/database"
+	"github.com/mohawa/lang-portal/backend_go/internal/models"
 )
 
 type GroupService struct {
-	groupRepo        *repository.GroupRepository
-	wordRepo         *repository.WordRepository
-	studySessionRepo *repository.StudySessionRepository
+	db *sql.DB
 }
 
-func NewGroupService(
-	groupRepo *repository.GroupRepository,
-	wordRepo *repository.WordRepository,
-	studySessionRepo *repository.StudySessionRepository,
-) *GroupService {
-	return &GroupService{
-		groupRepo:        groupRepo,
-		wordRepo:         wordRepo,
-		studySessionRepo: studySessionRepo,
-	}
+func NewGroupService() *GroupService {
+	return &GroupService{db: database.DB}
 }
 
-type GroupResponse struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	WordCount int    `json:"word_count"`
-}
-
-type GroupDetailsResponse struct {
-	ID        int64 `json:"id"`
-	Name      string `json:"name"`
-	Stats     struct {
-		TotalWordCount int `json:"total_word_count"`
-	} `json:"stats"`
-}
-
-type GroupWordResponse struct {
-	Japanese     string `json:"japanese"`
-	Romaji       string `json:"romaji"`
-	English      string `json:"english"`
-	CorrectCount int    `json:"correct_count"`
-	WrongCount   int    `json:"wrong_count"`
-}
-
-func (s *GroupService) GetGroups(page, limit int) ([]GroupResponse, int, error) {
-	// Validate pagination parameters
-	page, limit, err := validation.ValidatePagination(page, limit)
+func (s *GroupService) GetGroups(page, perPage int) (*models.PaginatedResponse, error) {
+	var total int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM groups").Scan(&total)
 	if err != nil {
-		return nil, 0, err
-	}
-
-	groups, err := s.groupRepo.GetAll(page, limit)
-	if err != nil {
-		return nil, 0, errors.ErrDatabaseError
-	}
-
-	totalCount, err := s.groupRepo.GetTotalCount()
-	if err != nil {
-		return nil, 0, errors.ErrDatabaseError
-	}
-
-	var response []GroupResponse
-	for _, group := range groups {
-		wordCount, err := s.groupRepo.GetWordCount(group.ID)
-		if err != nil {
-			return nil, 0, errors.ErrDatabaseError
-		}
-
-		response = append(response, GroupResponse{
-			ID:        group.ID,
-			Name:      group.Name,
-			WordCount: wordCount,
-		})
-	}
-
-	return response, totalCount, nil
-}
-
-func (s *GroupService) GetGroupByID(id int64) (*GroupDetailsResponse, error) {
-	// Validate ID
-	if err := validation.ValidateID(id); err != nil {
 		return nil, err
 	}
 
-	group, err := s.groupRepo.GetByID(id)
+	offset := (page - 1) * perPage
+	rows, err := s.db.Query(`
+		SELECT g.id, g.name, COUNT(wg.word_id) as word_count
+		FROM groups g
+		LEFT JOIN words_groups wg ON g.id = wg.group_id
+		GROUP BY g.id
+		LIMIT ? OFFSET ?
+	`, perPage, offset)
 	if err != nil {
-		if err == repository.ErrNotFound {
-			return nil, errors.ErrGroupNotFound
+		return nil, err
+	}
+	defer rows.Close()
+
+	var groups []models.Group
+	for rows.Next() {
+		var g models.Group
+		if err := rows.Scan(&g.ID, &g.Name, &g.WordCount); err != nil {
+			return nil, err
 		}
-		return nil, errors.ErrDatabaseError
+		groups = append(groups, g)
 	}
 
-	wordCount, err := s.groupRepo.GetWordCount(group.ID)
-	if err != nil {
-		return nil, errors.ErrDatabaseError
-	}
-
-	return &GroupDetailsResponse{
-		ID:   group.ID,
-		Name: group.Name,
-		Stats: struct {
-			TotalWordCount int `json:"total_word_count"`
-		}{
-			TotalWordCount: wordCount,
+	return &models.PaginatedResponse{
+		Items: groups,
+		Pagination: models.Pagination{
+			CurrentPage:  page,
+			TotalPages:   (total + perPage - 1) / perPage,
+			TotalItems:   total,
+			ItemsPerPage: perPage,
 		},
 	}, nil
 }
 
-func (s *GroupService) GetGroupWords(groupID int64, page, limit int) ([]models.Word, int, error) {
-	// Validate inputs
-	if err := validation.ValidateID(groupID); err != nil {
-		return nil, 0, err
-	}
-
-	// Get validated page and limit values
-	var err error
-	page, limit, err = validation.ValidatePagination(page, limit)
+func (s *GroupService) GetGroup(id int) (*models.GroupResponse, error) {
+	var group models.GroupResponse
+	err := s.db.QueryRow(`
+		SELECT g.id, g.name, COUNT(wg.word_id) as total_word_count
+		FROM groups g
+		LEFT JOIN words_groups wg ON g.id = wg.group_id
+		WHERE g.id = ?
+		GROUP BY g.id
+	`, id).Scan(&group.ID, &group.Name, &group.Stats.TotalWordCount)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-
-	// Get total count first
-	totalCount, err := s.groupRepo.GetGroupWordCount(groupID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error getting word count: %v", err)
-	}
-
-	// Get words
-	words, err := s.groupRepo.GetGroupWords(groupID, page, limit)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error getting words: %v", err)
-	}
-
-	return words, totalCount, nil
+	return &group, nil
 }
 
-func (s *GroupService) GetGroupStudySessions(groupID int64, page, limit int) ([]models.StudySession, int, error) {
-	// Validate inputs
-	if err := validation.ValidateID(groupID); err != nil {
-		return nil, 0, err
-	}
-
-	page, limit, err := validation.ValidatePagination(page, limit)
+func (s *GroupService) GetGroupWords(groupID, page, perPage int) (*models.PaginatedResponse, error) {
+	var total int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM words_groups 
+		WHERE group_id = ?
+	`, groupID).Scan(&total)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	// Check if group exists
-	if _, err := s.groupRepo.GetByID(groupID); err != nil {
-		if err == repository.ErrNotFound {
-			return nil, 0, errors.ErrGroupNotFound
+	offset := (page - 1) * perPage
+	rows, err := s.db.Query(`
+		SELECT w.japanese, w.romaji, w.english,
+			   COUNT(CASE WHEN wri.correct = 1 THEN 1 END) as correct_count,
+			   COUNT(CASE WHEN wri.correct = 0 THEN 1 END) as wrong_count
+		FROM words w
+		JOIN words_groups wg ON w.id = wg.word_id
+		LEFT JOIN word_review_items wri ON w.id = wri.word_id
+		WHERE wg.group_id = ?
+		GROUP BY w.id
+		LIMIT ? OFFSET ?
+	`, groupID, perPage, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var words []models.WordWithStats
+	for rows.Next() {
+		var w models.WordWithStats
+		if err := rows.Scan(&w.Japanese, &w.Romaji, &w.English, &w.CorrectCount, &w.WrongCount); err != nil {
+			return nil, err
 		}
-		return nil, 0, errors.ErrDatabaseError
+		words = append(words, w)
 	}
 
-	sessions, err := s.groupRepo.GetGroupStudySessions(groupID, page, limit)
+	return &models.PaginatedResponse{
+		Items: words,
+		Pagination: models.Pagination{
+			CurrentPage:  page,
+			TotalPages:   (total + perPage - 1) / perPage,
+			TotalItems:   total,
+			ItemsPerPage: perPage,
+		},
+	}, nil
+}
+
+func (s *GroupService) GetStudySessions(page, perPage int) (*models.PaginatedResponse, error) {
+	var total int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM study_sessions").Scan(&total)
 	if err != nil {
-		return nil, 0, errors.ErrDatabaseError
+		return nil, err
 	}
 
-	totalCount, err := s.groupRepo.GetStudySessionCount(groupID)
+	offset := (page - 1) * perPage
+	rows, err := s.db.Query(`
+		SELECT 
+			ss.id,
+			sa.name as activity_name,
+			g.name as group_name,
+			ss.created_at as start_time,
+			ss.created_at as end_time,
+			COUNT(wri.word_id) as review_items_count
+		FROM study_sessions ss
+		JOIN groups g ON ss.group_id = g.id
+		JOIN study_activities sa ON ss.study_activity_id = sa.id
+		LEFT JOIN word_review_items wri ON ss.id = wri.study_session_id
+		GROUP BY ss.id
+		ORDER BY ss.created_at DESC
+		LIMIT ? OFFSET ?
+	`, perPage, offset)
 	if err != nil {
-		return nil, 0, errors.ErrDatabaseError
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []models.StudySession
+	for rows.Next() {
+		var s models.StudySession
+		if err := rows.Scan(
+			&s.ID,
+			&s.ActivityName,
+			&s.GroupName,
+			&s.CreatedAt,
+			&s.CreatedAt,
+			&s.ReviewItemCount,
+		); err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, s)
 	}
 
-	return sessions, totalCount, nil
+	return &models.PaginatedResponse{
+		Items: sessions,
+		Pagination: models.Pagination{
+			CurrentPage:  page,
+			TotalPages:   (total + perPage - 1) / perPage,
+			TotalItems:   total,
+			ItemsPerPage: perPage,
+		},
+	}, nil
 } 

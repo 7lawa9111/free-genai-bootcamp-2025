@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Flashcards",
+    "thumbnail_url": "/images/flashcards.png",
+    "description": "Practice words using flashcards"
+  },
+  {
+    "name": "Multiple Choice",
+    "thumbnail_url": "/images/quiz.png",
+    "description": "Test your knowledge with multiple choice questions"
+  }
+] 
