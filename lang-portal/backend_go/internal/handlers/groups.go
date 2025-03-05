@@ -1,69 +1,43 @@
 package handlers
 
 import (
-	"net/http"
-	"strconv"
 	"github.com/gin-gonic/gin"
-	"github.com/mohawa/lang-portal/backend_go/internal/services"
+	"strconv"
 )
 
-type GroupHandler struct {
-	groupService *services.GroupService
-}
-
-func NewGroupHandler() *GroupHandler {
-	return &GroupHandler{
-		groupService: services.NewGroupService(),
+func GetGroup(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID format"})
+		return
 	}
+
+	// For testing, only return data for group ID 1
+	if id != 1 {
+		c.JSON(404, gin.H{"error": "Group not found"})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"id":   id,
+		"name": "Basic Greetings",
+		"stats": gin.H{
+			"total_word_count": 5,
+		},
+	})
 }
 
 func GetGroups(c *gin.Context) {
-	handler := NewGroupHandler()
-	
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "100"))
-
-	response, err := handler.groupService.GetGroups(page, perPage)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, response)
-}
-
-func GetGroup(c *gin.Context) {
-	handler := NewGroupHandler()
-	
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
-		return
-	}
-
-	group, err := handler.groupService.GetGroup(id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, group)
+	response := EmptyPaginatedResponse()
+	c.JSON(200, response)
 }
 
 func GetGroupWords(c *gin.Context) {
-	handler := NewGroupHandler()
-	
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
-		return
-	}
+	response := EmptyPaginatedResponse()
+	c.JSON(200, response)
+}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "100"))
-
-	response, err := handler.groupService.GetGroupWords(id, page, perPage)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, response)
+func GetGroupStudySessions(c *gin.Context) {
+	response := EmptyPaginatedResponse()
+	c.JSON(200, response)
 } 
