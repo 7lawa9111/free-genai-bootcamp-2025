@@ -38,3 +38,20 @@ This structure:
 2. Highlights key technical challenges
 3. Defines specific constraints
 4. Keeps focus on both learning outcomes and technical implementation
+
+
+## How to run frontend
+
+```sh
+cd frontend
+PYTHONPATH=.. streamlit run main.py
+```
+
+## How to run backend
+
+```sh
+cd backend
+pip install -r requirements.txt
+cd ..
+python backend/main.py
+```
