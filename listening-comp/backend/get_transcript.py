@@ -82,6 +82,12 @@ def main(video_url, print_transcript=False):
         video_id = downloader.extract_video_id(video_url)
         if downloader.save_transcript(transcript, video_id):
             print(f"Transcript saved successfully to {video_id}.txt")
+            
+            # Process transcript and extract structured data
+            from structured_data import process_transcript
+            if process_transcript(transcript, video_id):
+                print("Question extraction completed successfully")
+            
             #Print transcript if True
             if print_transcript:
                 # Print transcript
