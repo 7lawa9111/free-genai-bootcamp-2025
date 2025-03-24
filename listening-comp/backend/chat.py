@@ -3,7 +3,11 @@
 import boto3
 import streamlit as st
 from typing import Optional, Dict, Any
+import os
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
 
 # Model ID
 MODEL_ID = "us.amazon.nova-micro-v1:0"
@@ -11,38 +15,42 @@ MODEL_ID = "us.amazon.nova-micro-v1:0"
 
 
 class BedrockChat:
-    def __init__(self, model_id: str = MODEL_ID):
-        """Initialize Bedrock chat client"""
-        session = boto3.Session(
-            aws_access_key_id='',
-            aws_secret_access_key=''
-            # Optional: aws_session_token='YOUR_SESSION_TOKEN'  # If using temporary credentials
+    def __init__(self):
+        # Initialize Bedrock client using environment variables
+        self.bedrock = boto3.client(
+            service_name='bedrock-runtime',
+            region_name='us-east-2',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
         )
-        #self.bedrock_client = boto3.client('bedrock-runtime', region_name="us-east-1")
-        self.bedrock_client = session.client('bedrock-runtime', region_name="us-east-2")
-        self.model_id = model_id
+        self.model_id = 'us.amazon.nova-micro-v1:0'
 
-
-    def generate_response(self, message: str, inference_config: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """Generate a response using Amazon Bedrock"""
-        if inference_config is None:
-            inference_config = {"temperature": 0.7}
-
-        messages = [{
-            "role": "user",
-            "content": [{"text": message}]
-        }]
-
+    def generate_response(self, prompt: str) -> Optional[str]:
+        """
+        Generate a response using Amazon Bedrock
+        
+        Args:
+            prompt (str): The user's input prompt
+            
+        Returns:
+            Optional[str]: The generated response or None if failed
+        """
         try:
-            response = self.bedrock_client.converse(
+            messages = [{
+                "role": "user",
+                "content": [{"text": prompt}]
+            }]
+            
+            response = self.bedrock.converse(
                 modelId=self.model_id,
                 messages=messages,
-                inferenceConfig=inference_config
+                inferenceConfig={"temperature": 0.1}
             )
+            
             return response['output']['message']['content'][0]['text']
             
         except Exception as e:
-            st.error(f"Error generating response: {str(e)}")
+            print(f"Error generating response: {str(e)}")
             return None
 
 
