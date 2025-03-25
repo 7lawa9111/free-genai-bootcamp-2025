@@ -1,5 +1,6 @@
 import streamlit as st
 from backend.question_generator import QuestionGenerator
+from backend.audio_generator import AudioGenerator
 from datetime import datetime
 import json
 import os
@@ -89,6 +90,10 @@ def render_interactive_stage():
     if 'question_generator' not in st.session_state:
         st.session_state.question_generator = QuestionGenerator()
     
+    # Initialize audio generator
+    if 'audio_generator' not in st.session_state:
+        st.session_state.audio_generator = AudioGenerator()
+    
     # Practice type selection
     practice_type = st.selectbox(
         "Select Practice Type",
@@ -145,8 +150,22 @@ def render_interactive_stage():
                     st.session_state.feedback = f"❌ Incorrect. The correct answer is {question['correct_answer']}"
         
         with col2:
+            st.subheader("Audio")
+            if not question.get('audio_url') and st.button("Generate Audio"):
+                with st.spinner("Generating audio..."):
+                    audio_file = st.session_state.audio_generator.generate_question_audio(question)
+                    if audio_file:
+                        question['audio_url'] = audio_file
+                        # Update question in history
+                        for q in st.session_state.generated_questions:
+                            if q['timestamp'] == question['timestamp']:
+                                q['audio_url'] = audio_file
+                        save_question_history(st.session_state.generated_questions)
+                        st.rerun()
+                    else:
+                        st.error("Failed to generate audio")
+            
             if question.get('audio_url'):
-                st.subheader("Audio")
                 st.audio(question['audio_url'])
             
             st.subheader("Feedback")
