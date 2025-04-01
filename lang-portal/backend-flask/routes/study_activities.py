@@ -4,35 +4,62 @@ import math
 
 def load(app):
     @app.route('/api/study-activities', methods=['GET'])
-    @cross_origin()
     def get_study_activities():
-        cursor = app.db.cursor()
-        cursor.execute('SELECT id, name, url, preview_url FROM study_activities')
-        activities = cursor.fetchall()
-        
-        return jsonify([{
-            'id': activity['id'],
-            'title': activity['name'],
-            'launch_url': activity['url'],
-            'preview_url': activity['preview_url']
-        } for activity in activities])
+        try:
+            cursor = app.db.cursor()
+            cursor.execute('''
+                SELECT id, name, url, preview_url 
+                FROM study_activities
+            ''')
+            activities = cursor.fetchall()
+            
+            result = [{
+                'id': row['id'],
+                'name': row['name'],
+                'url': row['url'],
+                'preview_url': row['preview_url'],
+                'launch_url': row['url'],  # Use url as launch_url
+                'title': row['name'],      # Use name as title
+                'description': ''          # Empty description for now
+            } for row in activities]
+            
+            print("Sending activities:", result)
+            return jsonify(result)
+        except Exception as e:
+            print(f"Error fetching study activities: {e}")
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/api/study-activities/<int:id>', methods=['GET'])
     @cross_origin()
     def get_study_activity(id):
-        cursor = app.db.cursor()
-        cursor.execute('SELECT id, name, url, preview_url FROM study_activities WHERE id = ?', (id,))
-        activity = cursor.fetchone()
-        
-        if not activity:
-            return jsonify({'error': 'Activity not found'}), 404
+        try:
+            cursor = app.db.cursor()
+            cursor.execute('''
+                SELECT 
+                    id,
+                    name as title,
+                    url as launch_url,
+                    preview_url
+                FROM study_activities
+                WHERE id = ?
+            ''', (id,))
             
-        return jsonify({
-            'id': activity['id'],
-            'title': activity['name'],
-            'launch_url': activity['url'],
-            'preview_url': activity['preview_url']
-        })
+            activity = cursor.fetchone()
+            if not activity:
+                return jsonify({"error": "Activity not found"}), 404
+            
+            # Debug log
+            print("Activity from DB:", dict(activity))
+            
+            return jsonify({
+                "id": activity["id"],
+                "title": activity["title"],
+                "preview_url": activity["preview_url"],
+                "launch_url": activity["launch_url"]
+            })
+        except Exception as e:
+            print("Error fetching activity:", str(e))  # Debug log
+            return jsonify({"error": str(e)}), 500
 
     @app.route('/api/study-activities/<int:id>/sessions', methods=['GET'])
     @cross_origin()
@@ -123,4 +150,14 @@ def load(app):
                 'id': group['id'],
                 'name': group['name']
             } for group in groups]
+        })
+
+    @app.route('/api/study-activities/debug', methods=['GET'])
+    def debug_study_activities():
+        cursor = app.db.cursor()
+        cursor.execute('SELECT * FROM study_activities')
+        activities = cursor.fetchall()
+        return jsonify({
+            'count': len(activities),
+            'activities': [dict(row) for row in activities]
         })

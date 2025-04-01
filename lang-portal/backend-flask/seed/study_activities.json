@@ -1,3 +1,19 @@
 [
-  {"name": "Typing Tutor", "url": "http://localhost:8080", "preview_url": "/assets/study_activities/typing-tutor.png"}
+  {"name": "Typing Tutor", "url": "http://localhost:8080", "preview_url": "/assets/study_activities/typing-tutor.png"},
+  {
+    "name": "Writing Practice",
+    "url": "http://localhost:8081",
+    "preview_url": "/assets/study_activities/writing_practice.png",
+    "launch_url": "http://localhost:8081",
+    "title": "Writing Practice",
+    "description": "Practice writing Japanese characters"
+  },
+  {
+    "name": "Listening Comprehension",
+    "url": "http://localhost:8082",
+    "preview_url": "/assets/study_activities/listening_comp.png",
+    "launch_url": "http://localhost:8082",
+    "title": "Listening Comprehension",
+    "description": "Practice listening to Japanese audio"
+  }
 ]

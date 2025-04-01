@@ -1,0 +1,7 @@
+streamlit
+openai
+manga-ocr
+pillow
+requests
+python-dotenv
+streamlit-drawable-canvas 

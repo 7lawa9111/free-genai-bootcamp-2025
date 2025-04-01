@@ -21,6 +21,9 @@ def load(app):
       sort_by = request.args.get('sort_by', 'kanji')  # Default to sorting by 'kanji'
       order = request.args.get('order', 'asc')  # Default to ascending order
 
+      # Debug log
+      print(f"Fetching words: page={page}, sort_by={sort_by}, order={order}")
+
       # Validate sort_by and order
       valid_columns = ['kanji', 'romaji', 'english', 'correct_count', 'wrong_count']
       if sort_by not in valid_columns:
@@ -120,3 +123,38 @@ def load(app):
       
     except Exception as e:
       return jsonify({"error": str(e)}), 500
+
+  @app.route('/api/words', methods=['GET'])
+  def get_words_api():
+    cursor = app.db.cursor()
+    cursor.execute('''
+        SELECT w.id, w.kanji, w.romaji, w.english, w.parts,
+               GROUP_CONCAT(g.id) as group_ids,
+               GROUP_CONCAT(g.name) as group_names
+        FROM words w
+        LEFT JOIN word_groups wg ON w.id = wg.word_id
+        LEFT JOIN groups g ON wg.group_id = g.id
+        GROUP BY w.id
+    ''')
+    words = cursor.fetchall()
+    
+    # Debug logging
+    print("Words from DB:", [dict(w) for w in words])
+    
+    result = [{
+        'id': word['id'],
+        'kanji': word['kanji'],
+        'romaji': word['romaji'],
+        'english': word['english'],
+        'parts': word['parts'],
+        'groups': [{
+            'id': gid,
+            'name': gname
+        } for gid, gname in zip(
+            word['group_ids'].split(',') if word['group_ids'] else [],
+            word['group_names'].split(',') if word['group_names'] else []
+        )] if word['group_ids'] else []
+    } for word in words]
+    
+    print("Sending to frontend:", result)
+    return jsonify(result)

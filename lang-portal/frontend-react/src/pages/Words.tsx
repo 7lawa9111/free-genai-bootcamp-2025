@@ -8,7 +8,7 @@ export default function Words() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -16,12 +16,14 @@ export default function Words() {
       setIsLoading(true)
       setError(null)
       try {
+        console.log('Fetching words...'); // Debug log
         const response = await fetchWords(currentPage, sortKey, sortDirection)
+        console.log('Response:', response); // Debug log
         setWords(response.words)
         setTotalPages(response.total_pages)
       } catch (err) {
+        console.error('Error:', err); // Debug log
         setError('Failed to load words')
-        console.error(err)
       } finally {
         setIsLoading(false)
       }

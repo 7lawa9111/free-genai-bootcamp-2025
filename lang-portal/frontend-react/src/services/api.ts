@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'http://localhost:5001';
 
 // Group types
 export interface Group {
@@ -19,25 +19,47 @@ export interface WordGroup {
   name: string;
 }
 
-export interface Word {
+export type Word = {
   id: number;
   kanji: string;
   romaji: string;
   english: string;
   correct_count: number;
   wrong_count: number;
-  groups: WordGroup[];
-}
+};
+
+export type WordsResponse = {
+  words: Word[];
+  total_pages: number;
+  current_page: number;
+  total_words: number;
+};
 
 export interface WordResponse {
   word: Word;
 }
 
-export interface WordsResponse {
-  words: Word[];
-  total_pages: number;
-  current_page: number;
-  total_words: number;
+export async function fetchWords(
+  page: number = 1,
+  sortBy: string = 'kanji',
+  order: 'asc' | 'desc' = 'asc'
+): Promise<WordsResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/words?page=${page}&sort_by=${sortBy}&order=${order}`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch words');
+    }
+    
+    const data = await response.json();
+    console.log('Fetched words:', data); // Debug log
+    return data;
+  } catch (error) {
+    console.error('Error fetching words:', error);
+    throw error;
+  }
 }
 
 // Study Session types
@@ -133,20 +155,6 @@ export const fetchGroupWords = async (
 };
 
 // Word API
-export const fetchWords = async (
-  page: number = 1,
-  sortBy: string = 'kanji',
-  order: 'asc' | 'desc' = 'asc'
-): Promise<WordsResponse> => {
-  const response = await fetch(
-    `${API_BASE_URL}/words?page=${page}&sort_by=${sortBy}&order=${order}`
-  );
-  if (!response.ok) {
-    throw new Error('Failed to fetch words');
-  }
-  return response.json();
-};
-
 export const fetchWordDetails = async (wordId: number): Promise<Word> => {
   const response = await fetch(`${API_BASE_URL}/words/${wordId}`);
   if (!response.ok) {

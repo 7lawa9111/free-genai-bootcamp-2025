@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { useNavigation } from '@/context/NavigationContext'
 import StudySessionsTable from '@/components/StudySessionsTable'
 import Pagination from '@/components/Pagination'
@@ -35,6 +35,9 @@ const ITEMS_PER_PAGE = 10
 
 export default function StudyActivityShow() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const groupId = searchParams.get('group_id')
   const { setCurrentStudyActivity } = useNavigation()
   const [activity, setActivity] = useState<StudyActivity | null>(null)
   const [sessionData, setSessionData] = useState<PaginatedSessions | null>(null)
@@ -43,23 +46,18 @@ export default function StudyActivityShow() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return
-      
-      setLoading(true)
-      setError(null)
+    const fetchActivity = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/study-activities/${id}`)
+        const response = await fetch(`http://localhost:5001/api/study-activities/${id}`)
         if (!response.ok) {
-          throw new Error('Failed to fetch study activity')
+          throw new Error('Failed to fetch activity details')
         }
         const data = await response.json()
         setActivity(data)
         setCurrentStudyActivity(data)
         
-        // Fetch sessions for the current page
         const sessionsResponse = await fetch(
-          `http://localhost:5000/api/study-activities/${id}/sessions?page=${currentPage}&per_page=${ITEMS_PER_PAGE}`
+          `http://localhost:5001/api/study_activities/${id}/sessions?page=${currentPage}&per_page=${ITEMS_PER_PAGE}`
         )
         if (!sessionsResponse.ok) {
           throw new Error('Failed to fetch sessions')
@@ -82,13 +80,14 @@ export default function StudyActivityShow() {
           total_pages: sessionsData.total_pages
         })
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
+        console.error('Error fetching activity:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load activity')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchData()
+    fetchActivity()
   }, [id, currentPage, setCurrentStudyActivity])
 
   // Clean up when unmounting
@@ -97,6 +96,41 @@ export default function StudyActivityShow() {
       setCurrentStudyActivity(null)
     }
   }, [setCurrentStudyActivity])
+
+  const handleLaunchActivity = async (groupId: number) => {
+    try {
+      console.log('Creating session for group:', groupId, 'activity:', activity.id)
+      
+      // First create a new study session
+      const sessionResponse = await fetch('http://localhost:5001/api/study_sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          group_id: groupId,
+          study_activity_id: activity.id
+        }),
+      })
+
+      if (!sessionResponse.ok) {
+        const errorText = await sessionResponse.text()
+        throw new Error(`Failed to create session: ${errorText}`)
+      }
+
+      const sessionData = await sessionResponse.json()
+      console.log('Created session:', sessionData)
+
+      // Then redirect to the activity URL with the session parameters
+      const redirectUrl = `${activity.launch_url}?group_id=${groupId}&session_id=${sessionData.id}`
+      console.log('Redirecting to:', redirectUrl)
+      window.location.href = redirectUrl
+
+    } catch (err) {
+      console.error('Error launching activity:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create study session')
+    }
+  }
 
   if (loading) {
     return <div className="text-center py-4">Loading...</div>
@@ -107,42 +141,27 @@ export default function StudyActivityShow() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{activity.title}</h1>
-        <Link
-          to="/study-activities"
-          className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-        >
-          Back to Activities
-        </Link>
-      </div>
-      
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="relative">
-          <img 
-            src={activity.preview_url} 
-            alt={activity.title} 
-            className="inset-0 w-[600px] h-[400px] aspect-ratio bg-gray-900"
-          />
-        </div>
-        <div className="p-6">
-          <p className="text-gray-600 dark:text-gray-300 mb-4">{activity.description}</p>
-          <div className="space-y-4">
-            <div className="flex">
-              <Link
-                to={`/study-activities/${id}/launch`}
-                className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md"
-              >
-                Launch
-              </Link>
-            </div>
-          </div>
+    <div className="container mx-auto p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h1 className="text-2xl font-bold mb-4">{activity.title}</h1>
+        <img 
+          src={activity.preview_url} 
+          alt={activity.title} 
+          className="w-full h-64 object-cover rounded-lg mb-4"
+        />
+        <p className="text-gray-600 dark:text-gray-300 mb-4">{activity.description}</p>
+        <div className="flex justify-end">
+          <button 
+            onClick={() => handleLaunchActivity(groupId)}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90"
+          >
+            Launch Activity
+          </button>
         </div>
       </div>
 
       {sessionData && sessionData.items.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-4">
           <h2 className="text-xl font-semibold mb-4">Study Sessions</h2>
           <StudySessionsTable sessions={sessionData.items} />
           {sessionData.total_pages > 1 && (
