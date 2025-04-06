@@ -2,17 +2,103 @@
 # SPDX-License-Identifier: Apache-2.0
 
 services:
-  ollama-server:
-    image: ollama/ollama
-    container_name: ollama-server
+  # ollama-server:
+  #   image: ollama/ollama
+  #   container_name: ollama-server
+  #   ports:
+  #     - ${LLM_ENDPOINT_PORT:-8008}:11434
+  #   environment:
+  #     no_proxy: ${no_proxy}
+  #     http_proxy: ${http_proxy}
+  #     https_proxy: ${https_proxy}
+  #     LLM_MODEL_ID: ${LLM_MODEL_ID}
+  #     host_ip: ${host_ip}
+
+  speecht5-service:
+    build:
+      context: ./custom-speecht5
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: speecht5-service
     ports:
-      - ${LLM_ENDPOINT_PORT:-8008}:11434
+      - ${SPEECHT5_PORT:-7055}:7055
+    ipc: host
     environment:
       no_proxy: ${no_proxy}
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
-      LLM_MODEL_ID: ${LLM_MODEL_ID}
-      host_ip: ${host_ip}
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7055/health"]
+  gptsovits-service:
+    image: ${REGISTRY:-opea}/gpt-sovits:${TAG:-latest}
+    container_name: gpt-sovits-service
+    ports:
+      - ${GPT_SOVITS_PORT:-9880}:9880
+    ipc: host
+    volumes:
+      - ./audio:/audio
+    environment:
+      no_proxy: ${no_proxy}
+      http_proxy: ${http_proxy}
+      https_proxy: ${https_proxy}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9880/health"]
+      interval: 10s
+      timeout: 6s
+      retries: 18
+  tts-gptsovits:
+    image: ${REGISTRY:-opea}/tts:${TAG:-latest}
+    container_name: tts-gptsovits-service
+    ports:
+      - ${TTS_PORT:-9088}:9088
+    ipc: host
+    environment:
+      TTS_ENDPOINT: http://172.24.230.22:9880
+      TTS_COMPONENT_NAME: ${TTS_COMPONENT_NAME:-OPEA_GPTSOVITS_TTS}
+    depends_on:
+      gptsovits-service:
+        condition: service_healthy
+
+  # vllm-service:
+  #   image: vllm-custom:cpu 
+  #   platform: linux/arm64/v8
+  #   container_name: vllm-service
+  #   ports:
+  #     - "9009:8000"
+  #   volumes:
+  #     - "./data:/data"
+  #   shm_size: 4g
+  #   restart: on-failure
+  #   environment:
+  #     no_proxy: ${no_proxy}
+  #     http_proxy: ${http_proxy}
+  #     https_proxy: ${https_proxy}
+  #     HF_TOKEN: ${HUGGINGFACEHUB_API_TOKEN}
+  #     LLM_MODEL_ID: ${LLM_MODEL_ID}
+  #     VLLM_TORCH_PROFILER_DIR: "/mnt"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 8G
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  #     interval: 10s
+  #     timeout: 10s
+  #     retries: 100
+  #   command: >
+  #     python3 -m vllm.entrypoints.api_server 
+  #     --model facebook/opt-125m 
+  #     --host 0.0.0.0 
+  #     --port 8000 
+  #     --device cpu 
+  #     --disable-async-output-proc 
+  #     --worker-cls vllm.worker.worker_base.AsyncWorker
 
 networks:
   default:
