@@ -21,13 +21,10 @@ Tried several alternative TTS solutions:
 
 ### Implementation
 - Used the mycustom-TTS model (`tts_models/multilingual/multi-dataset/your_tts`)
-- Successfully generated voice cloned audio with the following characteristics:
-  - 16-bit PCM WAV format
-  - 16kHz mono audio
-  - Real-time factor of ~0.3 (meaning generation is faster than real-time)
+- Successfully generated voice cloned audio
 
 ## Key Components
-- **Reference audio**: `/audio/andrew-ref-10s.wav`
+- **Reference audio**: `/audio/andrew-ref-1m.wav`
 - **Model**: mycustom-TTS (multilingual multi-speaker model)
 - **Processing**: CPU-only configuration
 - **Output**: Successfully generated WAV files with voice matching
@@ -39,7 +36,7 @@ Tried several alternative TTS solutions:
 curl -X POST "http://localhost:9881/tts" \
   -H "Content-Type: application/json" \
   -H "Accept: audio/wav" \
-  -d '{"text": "Hello, this is a voice cloning test.", "reference_audio": "/audio/andrew-ref-10s.wav"}' \
+  -d '{"text": "Hello, this is a voice cloning test.", "reference_audio": "/audio/andrew-ref-1m.wav"}' \
   --output output.wav
 ```
 
