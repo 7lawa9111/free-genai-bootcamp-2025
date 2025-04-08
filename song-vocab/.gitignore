@@ -1,0 +1,3 @@
+outputs/*/*.json
+outputs/*/*.txt
+song-vocab-env/

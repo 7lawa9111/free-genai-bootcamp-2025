@@ -1,0 +1,11 @@
+fastapi>=0.104.1
+uvicorn>=0.24.0
+ollama>=0.1.6
+pydantic>=2.0.2,<3.0.0
+instructor==0.3.1
+duckduckgo-search>=4.1.1
+python-dotenv>=1.0.0
+beautifulsoup4>=4.12.2
+requests>=2.31.0
+typing-extensions>=4.0.0
+eval-type-backport>=0.1.0 
