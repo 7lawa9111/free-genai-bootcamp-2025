@@ -6,6 +6,7 @@ import useGameStore from '../store/gameStore';
 import VocabularyList from './VocabularyList';
 import VocabularyExtractor from './VocabularyExtractor';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import CommandInput from './CommandInput';
 
 // This will be moved to a separate file later
 const initialScene = {
@@ -88,6 +89,7 @@ const Game = () => {
           overflow: 'hidden',
           borderRadius: 2,
           boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          marginBottom: '100px', // Add margin to make room for CommandInput
         }}
       >
         {/* Vocabulary Drawer Toggle Button */}
@@ -295,6 +297,9 @@ const Game = () => {
           </Box>
         </motion.div>
       </Box>
+      
+      {/* Add CommandInput component */}
+      <CommandInput />
     </Container>
   );
 };
