@@ -77,18 +77,20 @@ Q Does bridge mode mean we can only accses Ollama API with another model in the 
 
 A No, the host machine will be able to access it
 
-Q: Which port is being mapped 8008->141414
+Q: Which port is being mapped 8008->11434
 
-In this case 8008 is the port that host machine will access. the other other in the guest port (the port of the service inside container)
+In this case 8008 is the port that host machine will access. the other in the guest port (the port of the service inside container)
 
 Q: If we pass the LLM_MODEL_Id to the ollama server will it download the model when on start?
 
-It does not appear so. The ollama CLI might be running multiple APIs so you need to call the /pull api before trying to generat text
-
+It does not appear so. 
+```sh
+docker exec ollama-server ollama pull orca-mini
+```
 Q: Will the model be downloaded in the container? does that mean the ml model will be deleted when the container stops running?
 
 A: The model will download into the container, and vanish when the container stop running. You need to mount a local drive and there is probably more work to be done.
 
 Q: For LLM service which can text-generation it suggets it will only work with TGI/vLLM and all you have to do is have it running. Does TGI and vLLM have a stardarized API or is there code to detect which one is running? Do we have to really use Xeon or Guadi processor?
 
-vLLM, TGI (Text Generation Inference), and Ollama all offer APIs with OpenAI compatibility, so in theory they should be interchangable.
+VLLM service was commented out due to these limitations, Implemented custom TTS service with better CPU compatibility.

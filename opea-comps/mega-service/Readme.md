@@ -54,10 +54,3 @@ The service can be configured using:
 - `LLM_SERVICE_PORT`: Default 8008
 - `LLM_ENDPOINT_PORT`: Port for Ollama in docker-compose (default 8008)
 
-## How to access the Jaeger UI
-
-When you run docker compose it should start up Jaeger:
-
-```sh
-http://localhost:16686/
-```
