@@ -1,50 +1,102 @@
-# React + TypeScript + Vite
+# Japanese Learning App Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based frontend for the Japanese language learning application, built with TypeScript, Vite, and Tailwind CSS.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Interactive dashboard with study progress tracking
+- Word group management
+- Study session tracking
+- Real-time progress updates
+- Responsive design with dark mode support
 
-## Expanding the ESLint configuration
+## Prerequisites
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+- Node.js (v18 or higher)
+- npm or yarn
+- Backend server running (see Backend Setup)
 
-- Configure the top-level `parserOptions` property like this:
+## Quick Start
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+1. Install dependencies:
+```bash
+npm install
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+2. Start the development server:
+```bash
+npm run dev
 ```
+
+The application will be available at `http://localhost:5173`
+
+## Backend Setup
+
+The frontend requires the Flask backend server running on port 5001. To set up the backend:
+
+1. Navigate to the backend directory:
+```bash
+cd ../backend-flask
+```
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Start the backend server:
+```bash
+python app.py
+```
+
+The backend will run on `http://localhost:5001`
+
+## Available API Endpoints
+
+The frontend interacts with the following API endpoints:
+
+### Dashboard
+- `GET /api/dashboard` - Fetch dashboard data including study progress and stats
+
+### Study Sessions
+- `GET /api/study-sessions` - List all study sessions
+- `POST /api/study-sessions` - Create a new study session
+- `GET /api/study-sessions/:id` - Get specific session details
+
+### Words and Groups
+- `GET /api/words` - List all vocabulary words
+- `GET /api/groups` - List all word groups
+- `POST /api/groups` - Create a new word group
+- `GET /api/groups/:id` - Get specific group details
+
+### Study Activities
+- `GET /api/study-activities` - List available study activities
+- `POST /api/study-activities/:id/start` - Start a study activity
+- `POST /api/study-activities/:id/complete` - Complete a study activity
+
+## Development Commands
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run lint` - Run ESLint
+- `npm run preview` - Preview production build
+
+## Environment Configuration
+
+The application automatically detects the environment and configures API endpoints:
+- Development: `http://localhost:5001`
+- Gitpod: Automatically uses the correct workspace URL
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
